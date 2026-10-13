@@ -4,9 +4,19 @@ Adds each final pi answer to a note in your Obsidian vault.
 
 ## Features
 
-- Type `/render-in-obsidian` to open a menu. From there you can turn the extension on or off for the current session, open the note, and change the settings.
-- **Choose vault** lists the vaults the Obsidian CLI knows about, so you can pick one instead of typing its name and location. If the CLI isn't available, you can type the vault's location.
-- You can also set the vault name, the vault's location and the folder inside the vault yourself. Notes go in `pi-sessions` unless you change it.
+- Type `/render-in-obsidian` to open a settings screen, laid out like pi's `/settings`:
+
+  ```
+  Show answers in Obsidian  off
+  Vault                     obsidian-db
+  Folder in vault           pi-sessions
+  Open note in Obsidian     open
+  ```
+
+  - **Show answers in Obsidian** turns it on or off for the current session.
+  - **Vault** lists the vaults the Obsidian CLI knows about, with their locations. You can also type a location for a vault that isn't listed, or if the CLI isn't available.
+  - **Folder in vault** is where notes go inside the vault. Leave it empty to use the vault's top level.
+  - **Open note in Obsidian** opens this session's note.
 - Turning it on creates a note for the session and opens it in Obsidian. Each note is named `YYYY-MM-DD-HHmm - <session id> - <session name>.md`. If the session has no name, the start of your first prompt is used instead.
 - The top of each note records the session ID, the working folder, when the note was made, and a `pi-session` tag.
 - When you first turn it on, any answers already in the session are added to the note. Each one shows the time it was originally written.
@@ -37,7 +47,7 @@ Settings are saved in `~/.pi/agent/extensions/pi-render-in-obsidian.json`:
 }
 ```
 
-- `vault` is the vault name as Obsidian shows it. It is used to open the note and run Gremlins.
+- `vault` is the vault name as Obsidian shows it. It is used to open the note and run Gremlins. If you type a location, the folder name is used.
 - `vaultPath` is the vault's folder on disk. Notes are written here. On WSL, Windows paths such as `D:\obsidian-db` are changed to `/mnt/d/obsidian-db`.
 - `folder` is the folder inside the vault. Leave it empty to use the vault's top level.
 

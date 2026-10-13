@@ -2,7 +2,15 @@ import { execFile } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { appendFile, mkdir, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import {
+	DynamicBorder,
+	getAgentDir,
+	getSelectListTheme,
+	getSettingsListTheme,
+	type ExtensionAPI,
+	type ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
+import { Container, Input, type SelectItem, SelectList, type SettingItem, SettingsList, Spacer, Text } from "@earendil-works/pi-tui";
 
 const ENTRY = "render-in-obsidian";
 const SETTINGS_FILE = join(getAgentDir(), "extensions", "pi-render-in-obsidian.json");
@@ -159,7 +167,6 @@ export default function (pi: ExtensionAPI) {
 	const connect = async (ctx: ExtensionContext) => {
 		if (connection) return open(ctx);
 		const settings = loadSettings();
-		if (!settings.vaultPath && ctx.hasUI) await chooseVault(ctx, settings);
 		if (!settings.vaultPath) {
 			ctx.ui.notify("No vault set. Run /render-in-obsidian and choose a vault first.", "warning");
 			return;
@@ -204,65 +211,163 @@ export default function (pi: ExtensionAPI) {
 		fixGremlins(ctx);
 	};
 
-	/** Lets the user pick a vault the Obsidian CLI knows about, or type a location. Saves and updates `settings`. */
-	const chooseVault = async (ctx: ExtensionContext, settings: Settings) => {
+	/** Settings screen in the style of pi's /settings: labels on the left, values on the right. */
+	const menu = async (ctx: ExtensionContext) => {
 		let vaults: { name: string; path: string }[] = [];
 		try {
 			vaults = parseVaults(await run(["vaults", "verbose"]));
 		} catch {
-			// Obsidian CLI missing or Obsidian not running: fall back to typing the location.
+			// Obsidian CLI missing or Obsidian not running: only typing a location is offered.
 		}
-		const manual = "Type the vault location…";
-		const labels = vaults.map((v) => `${v.name}  (${v.path})`);
-		const pick = await ctx.ui.select("Choose a vault", [...labels, manual]);
-		if (!pick) return;
-		if (pick === manual) {
-			const path = (await ctx.ui.input("Vault location (folder on disk)", settings.vaultPath))?.trim();
-			if (!path) return;
-			settings.vaultPath = localPath(path);
-			settings.vault = basename(settings.vaultPath);
-		} else {
-			const vault = vaults[labels.indexOf(pick)];
-			settings.vault = vault.name;
-			settings.vaultPath = vault.path;
-		}
-		await saveSettings(settings);
-		ctx.ui.notify(`Vault set to ${settings.vault} (${settings.vaultPath})`, "info");
-	};
 
-	const menu = async (ctx: ExtensionContext) => {
-		for (;;) {
-			const settings = loadSettings();
-			const items: [string, () => Promise<unknown> | void][] = [
-				connection
-					? ["Turn off for this session", () => disconnect(ctx)]
-					: ["Turn on for this session", () => connect(ctx)],
-				...(connection ? ([["Open the note in Obsidian", () => open(ctx)]] as [string, () => Promise<void>][]) : []),
-				[`Choose vault: ${settings.vault ?? "not set"}`, async () => { await chooseVault(ctx, settings); return "again"; }],
-				[`Set vault name: ${settings.vault ?? "not set"}`, async () => {
-					const name = (await ctx.ui.input("Vault name, as Obsidian shows it", settings.vault))?.trim();
-					if (name) await saveSettings({ ...settings, vault: name });
-					return "again";
-				}],
-				[`Set vault location: ${settings.vaultPath ?? "not set"}`, async () => {
-					const path = (await ctx.ui.input("Vault location (folder on disk)", settings.vaultPath))?.trim();
-					if (path) await saveSettings({ ...settings, vaultPath: localPath(path) });
-					return "again";
-				}],
-				[`Set folder inside vault: ${settings.folder || "(vault root)"}`, async () => {
-					const folder = await ctx.ui.input("Folder inside the vault (empty for the vault root)", settings.folder);
-					if (folder !== undefined) await saveSettings({ ...settings, folder: folder.trim().replace(/^\/+|\/+$/g, "") });
-					return "again";
-				}],
+		const settings = loadSettings();
+		const vaultValue = () => settings.vault ?? (settings.vaultPath ? basename(settings.vaultPath) : "not set");
+		const folderValue = () => settings.folder || "(vault root)";
+		const TYPE = "__type__";
+
+		await ctx.ui.custom<void>((tui, theme, _kb, done) => {
+			const border = () => new DynamicBorder((s: string) => theme.fg("border", s));
+			const title = (text: string) => new Text(theme.bold(theme.fg("accent", text)), 0, 0);
+			const hint = (text: string) => new Text(theme.fg("dim", text), 0, 0);
+
+			/** Single-line text entry used as a submenu. */
+			const textSubmenu = (heading: string, value: string, finish: (value?: string) => void) => {
+				const input = new Input();
+				input.setValue(value);
+				input.handleInput("\x05"); // Ctrl+E: put the cursor after the existing text
+				input.focused = true;
+				input.onSubmit = (v) => finish(v.trim());
+				input.onEscape = () => finish(undefined);
+				const box = new Container();
+				box.addChild(title(heading));
+				box.addChild(new Spacer(1));
+				box.addChild(input);
+				box.addChild(new Spacer(1));
+				box.addChild(hint("  Enter to save · Esc to go back"));
+				return Object.assign(box, { handleInput: (data: string) => input.handleInput(data) });
+			};
+
+			const vaultSubmenu = (_current: string, finish: (value?: string) => void) => {
+				const options: SelectItem[] = [
+					...vaults.map((v) => ({ value: v.name, label: v.name, description: v.path })),
+					{ value: TYPE, label: "Type a location…", description: "Use a vault folder that isn't listed" },
+				];
+				const box = new Container();
+				let active: { handleInput?(data: string): void } | undefined;
+				const list = new SelectList(options, Math.min(options.length, 10), getSelectListTheme(), {
+					minPrimaryColumnWidth: 12,
+					maxPrimaryColumnWidth: 32,
+				});
+				const selected = options.findIndex((o) => o.value === settings.vault);
+				if (selected >= 0) list.setSelectedIndex(selected);
+				list.onCancel = () => finish(undefined);
+				list.onSelect = (item) => {
+					if (item.value !== TYPE) {
+						const vault = vaults.find((v) => v.name === item.value)!;
+						settings.vault = vault.name;
+						settings.vaultPath = vault.path;
+						return finish(vault.name);
+					}
+					const entry = textSubmenu("Vault location (folder on disk)", settings.vaultPath ?? "", (path) => {
+						if (!path) return finish(undefined);
+						settings.vaultPath = localPath(path);
+						settings.vault = basename(settings.vaultPath);
+						finish(settings.vault);
+					});
+					box.clear();
+					box.addChild(entry);
+					active = entry;
+				};
+				box.addChild(title("Vault"));
+				box.addChild(new Spacer(1));
+				box.addChild(
+					new Text(
+						theme.fg("muted", vaults.length ? "Vaults found by the Obsidian CLI" : "Obsidian CLI not available. Type the location."),
+						0,
+						0,
+					),
+				);
+				box.addChild(new Spacer(1));
+				box.addChild(list);
+				box.addChild(new Spacer(1));
+				box.addChild(hint("  Enter to select · Esc to go back"));
+				active = list;
+				return Object.assign(box, { handleInput: (data: string) => active?.handleInput?.(data) });
+			};
+
+			const items: SettingItem[] = [
+				{
+					id: "enabled",
+					label: "Show answers in Obsidian",
+					description: connection
+						? `This session writes to ${connection.notePath}`
+						: "Creates a note for this session and adds each final answer to it",
+					currentValue: connection ? "on" : "off",
+					values: ["on", "off"],
+				},
+				{
+					id: "vault",
+					label: "Vault",
+					description: settings.vaultPath ? `Notes are written to ${settings.vaultPath}` : "Choose the vault to write notes to",
+					currentValue: vaultValue(),
+					submenu: vaultSubmenu,
+				},
+				{
+					id: "folder",
+					label: "Folder in vault",
+					description: "Folder inside the vault for session notes. Leave empty for the top level.",
+					currentValue: folderValue(),
+					submenu: (_current, finish) =>
+						textSubmenu("Folder in vault", settings.folder, (folder) => {
+							if (folder === undefined) return finish(undefined);
+							settings.folder = folder.replace(/^\/+|\/+$/g, "");
+							finish(folderValue());
+						}),
+				},
+				{
+					id: "open",
+					label: "Open note in Obsidian",
+					description: "Opens this session's note. Only works while turned on.",
+					currentValue: "open",
+					values: ["open"],
+				},
 			];
-			const pick = await ctx.ui.select(
-				connection ? `Obsidian: connected to ${connection.notePath}` : "Obsidian: not connected",
-				items.map(([label]) => label),
-			);
-			const action = items.find(([label]) => label === pick)?.[1];
-			if (!action || (await action()) !== "again") return;
-			if (connection) ctx.ui.notify("Settings apply the next time a session is turned on.", "info");
-		}
+
+			const list = new SettingsList(items, items.length, getSettingsListTheme(), (id, value) => {
+				if (id === "enabled") {
+					const run = value === "on" ? connect(ctx) : Promise.resolve(disconnect(ctx));
+					void run.finally(() => {
+						const on = Boolean(connection);
+						list.updateValue("enabled", on ? "on" : "off");
+						items[0].description = on
+							? `This session writes to ${connection!.notePath}`
+							: "Creates a note for this session and adds each final answer to it";
+						tui.requestRender();
+					});
+				} else if (id === "open") {
+					if (connection) void open(ctx);
+					else ctx.ui.notify("Turn it on first.", "info");
+				} else {
+					items[1].description = `Notes are written to ${settings.vaultPath}`;
+					void saveSettings(settings);
+					if (connection) ctx.ui.notify("Saved. This applies the next time you turn it on.", "info");
+				}
+				tui.requestRender();
+			}, () => done());
+
+			const screen = new Container();
+			screen.addChild(border());
+			screen.addChild(title("Render in Obsidian"));
+			screen.addChild(new Spacer(1));
+			screen.addChild(list);
+			screen.addChild(border());
+			return Object.assign(screen, {
+				handleInput: (data: string) => {
+					list.handleInput(data);
+					tui.requestRender();
+				},
+			});
+		});
 	};
 
 	pi.on("session_start", async (_event, ctx) => {
