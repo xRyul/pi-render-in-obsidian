@@ -1,9 +1,24 @@
 {
   "name": "pi-render-in-obsidian",
   "version": "0.1.0",
-  "private": true,
+  "description": "Pi extension that adds each final pi answer to the end of a note in your Obsidian vault.",
   "type": "module",
-  "description": "Mirror each final pi answer into an Obsidian note so it renders with your vault theme.",
+  "license": "MIT",
+  "author": "xryul",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xRyul/pi-render-in-obsidian.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xRyul/pi-render-in-obsidian/issues"
+  },
+  "homepage": "https://github.com/xRyul/pi-render-in-obsidian#readme",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-extension",
+    "obsidian"
+  ],
   "pi": {
     "extensions": [
       "./index.ts"
@@ -12,10 +27,20 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*"
+  },
   "devDependencies": {
     "@earendil-works/pi-coding-agent": "1.1.0",
+    "@earendil-works/pi-tui": "1.1.0",
     "@types/node": "^24.0.0",
-    "typescript": "^5.9.3",
-    "@earendil-works/pi-tui": "1.1.0"
-  }
+    "typescript": "^5.9.3"
+  },
+  "files": [
+    "index.ts",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ]
 }

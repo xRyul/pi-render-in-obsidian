@@ -1,6 +1,22 @@
 # pi-render-in-obsidian
 
-Adds each final pi answer to a note in your Obsidian vault.
+Adds each final pi answer to the end of a note in your Obsidian vault, so you can read it rendered in Obsidian.
+
+It only adds to the end of the note and never rewrites earlier content. If Gremlins is turned on, its fix runs over the whole note.
+
+## Install
+
+```bash
+pi install npm:pi-render-in-obsidian
+```
+
+Or from GitHub:
+
+```bash
+pi install git:github.com/xRyul/pi-render-in-obsidian
+```
+
+Then restart pi or run `/reload`, and type `/render-in-obsidian`.
 
 ## Features
 
@@ -8,7 +24,7 @@ Adds each final pi answer to a note in your Obsidian vault.
 
   ```
   Show answers in Obsidian  off
-  Vault                     obsidian-db
+  Vault                     my-vault
   Folder in vault           pi-sessions
   Open note in Obsidian     open
   ```
@@ -41,14 +57,14 @@ Settings are saved in `~/.pi/agent/extensions/pi-render-in-obsidian.json`:
 
 ```json
 {
-  "vault": "obsidian-db",
-  "vaultPath": "/mnt/d/obsidian-db",
+  "vault": "my-vault",
+  "vaultPath": "/home/me/my-vault",
   "folder": "pi-sessions"
 }
 ```
 
 - `vault` is the vault name as Obsidian shows it. It is used to open the note and run Gremlins. If you type a location, the folder name is used.
-- `vaultPath` is the vault's folder on disk. Notes are written here. On WSL, Windows paths such as `D:\obsidian-db` are changed to `/mnt/d/obsidian-db`.
+- `vaultPath` is the vault's folder on disk. Notes are written here. On WSL, Windows paths such as `D:\my-vault` are changed to `/mnt/d/my-vault`.
 - `folder` is the folder inside the vault. Leave it empty to use the vault's top level.
 
 A session keeps the vault it was turned on with. New settings apply the next time you turn it on.
