@@ -1,23 +1,49 @@
 # pi-render-in-obsidian
 
-`/render-in-obsidian` creates `pi-sessions/YYYY-MM-DD-HHmm - <session id> - <name>.md` in your vault,
-backfills earlier answers, opens it in Obsidian, then appends every final assistant answer
-(markdown only, no thinking or tool calls) as:
+Adds each final pi answer to a note in your Obsidian vault.
 
+## Features
+
+- Type `/render-in-obsidian` to open a menu. From there you can turn the extension on or off for the current session, open the note, and change the settings.
+- **Choose vault** lists the vaults the Obsidian CLI knows about, so you can pick one instead of typing its name and location. If the CLI isn't available, you can type the vault's location.
+- You can also set the vault name, the vault's location and the folder inside the vault yourself. Notes go in `pi-sessions` unless you change it.
+- Turning it on creates a note for the session and opens it in Obsidian. Each note is named `YYYY-MM-DD-HHmm - <session id> - <session name>.md`. If the session has no name, the start of your first prompt is used instead.
+- The top of each note records the session ID, the working folder, when the note was made, and a `pi-session` tag.
+- When you first turn it on, any answers already in the session are added to the note. Each one shows the time it was originally written.
+- From then on, each new final answer is added to the bottom of the note, under a heading with the date and time and followed by a `---` line.
+- Only the text of the answer is added. The agent's thinking and tool calls are left out.
+- If you have the Gremlins plugin turned on and the note is open, the extension runs Gremlins' "Fix all in current note" after each answer is added. This works whether the note is in reading view or editing view.
+- While a session is on, the pi footer shows `◆ obsidian`.
+- A session stays on when you resume it later.
+- Turning it off stops adding answers. The note is kept.
+
+## Quick commands
+
+You can skip the menu:
+
+- `/render-in-obsidian on` turns it on for this session.
+- `/render-in-obsidian off` turns it off.
+- `/render-in-obsidian open` opens the note in Obsidian.
+
+## Settings
+
+Settings are saved in `~/.pi/agent/extensions/pi-render-in-obsidian.json`:
+
+```json
+{
+  "vault": "obsidian-db",
+  "vaultPath": "/mnt/d/obsidian-db",
+  "folder": "pi-sessions"
+}
 ```
-# YYYY-MM-DD HH:mm:ss
 
-answer
+- `vault` is the vault name as Obsidian shows it. It is used to open the note and run Gremlins.
+- `vaultPath` is the vault's folder on disk. Notes are written here. On WSL, Windows paths such as `D:\obsidian-db` are changed to `/mnt/d/obsidian-db`.
+- `folder` is the folder inside the vault. Leave it empty to use the vault's top level.
 
----
-```
+A session keeps the vault it was turned on with. New settings apply the next time you turn it on.
 
-The footer shows `◆ obsidian` while connected. The link is stored in the session, so resuming keeps it.
-If the Gremlins plugin is enabled and the note is open,
-each append (and the initial backfill) is followed by Gremlins' "Fix all in current note", run via `obsidian eval`.
-Reading mode switches to source for a moment and back. Without the plugin, or with the note closed, nothing happens.
+## Requirements
 
-`/render-in-obsidian` again re-opens the note; `/render-in-obsidian off` disconnects.
-
-Env: `PI_OBSIDIAN_VAULT` (default `obsidian-db`), `PI_OBSIDIAN_VAULT_PATH` (default `/mnt/d/obsidian-db`),
-`PI_OBSIDIAN_FOLDER` (default `pi-sessions`). Opening uses the `obsidian` CLI.
+- Opening the note and running Gremlins need the [Obsidian CLI](https://help.obsidian.md/cli) (Obsidian 1.12.7 or later, with the command line interface turned on in Settings → General) and Obsidian to be running.
+- Without the CLI, answers are still added to the note. You open it in Obsidian yourself.
