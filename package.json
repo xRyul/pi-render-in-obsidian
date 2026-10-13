@@ -22,7 +22,8 @@
   "pi": {
     "extensions": [
       "./index.ts"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/xRyul/pi-render-in-obsidian/main/assets/demo.png"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

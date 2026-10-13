@@ -2,6 +2,8 @@
 
 Adds each final pi answer to the end of a note in your Obsidian vault, so you can read it rendered in Obsidian.
 
+![pi on the left, the same answer rendered in an Obsidian note on the right](assets/demo.png)
+
 It only adds to the end of the note and never rewrites earlier content. If Gremlins is turned on, its fix runs over the whole note.
 
 ## Install
